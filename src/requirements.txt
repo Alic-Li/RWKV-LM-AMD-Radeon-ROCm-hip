@@ -1,0 +1,13 @@
+torch
+transformers
+ninja
+tokenizers
+rwkv
+pynvml
+huggingface_hub
+
+
+
+
+
+
