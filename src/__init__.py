@@ -33,7 +33,7 @@ model_v6 = RWKV(model=model_path_v6, strategy= hip fp16')
 pipeline_v6 = PIPELINE(model_v6, "rwkv_vocab_v20230424")  """
 ##调用V5模型
 title="rwkv_v5"    
-model_path = "/home/alic-li/RWKV-LM/RWKV-v5/model/world.pth" ##模型路径(可修改)
+model_path = "/home/alic-li/RWKV-LM/model/world.pth" ##模型路径(可修改)
 model = RWKV(model=model_path, strategy='cuda bf16')  ##调整策略
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")  ##模型词库
 
