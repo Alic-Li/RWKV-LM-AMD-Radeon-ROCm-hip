@@ -16,23 +16,24 @@ from datetime import datetime
 from transformers import CLIPImageProcessor
 #from huggingface_hub import hf_hub_download
 from pynvml import *
+from rwkv.utils import PIPELINE, PIPELINE_ARGS 
 #nvmlInit()
 #gpu_h = nvmlDeviceGetHandleByIndex(0)
-device = torch.device("hip" if torch.cuda.is_available() else "cpu") #调用hip设备
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #调用hip设备
 
 ctx_limit = 3500
 ########################## visual rwkv ################################################################
 visual_title = 'ViusualRWKV-v5'
-rwkv_remote_path = "rwkv1b5-vitl336p14-577token_mix665k_rwkv.pth"
-vision_remote_path = "rwkv1b5-vitl336p14-577token_mix665k_visual.pth"
+#rwkv_remote_path = "rwkv1b5-vitl336p14-577token_mix665k_rwkv.pth"
+#vision_remote_path = "rwkv1b5-vitl336p14-577token_mix665k_visual.pth"
 vision_tower_name = 'openai/clip-vit-large-patch14-336'
 
-model_path = "/home/alic-li/RWKV-LM/RWKV-v5/model/visual.pth"
-visual_rwkv = RWKV(model=model_path, strategy='hip fp16') #调用hip策略
+model_path = "/home/alic-li/RWKV-LM/model/visual.pth"
+visual_rwkv = RWKV(model=model_path, strategy='cuda fp16') #调用hip策略
+pipeline = PIPELINE(visual_rwkv, "rwkv_vocab_v20230424")  ##模型词库
 
-##########################################################################
 from modeling_vision import VisionEncoder, VisionEncoderConfig
-config = VisionEncoderConfig(n_embd=model.args.n_embd, 
+config = VisionEncoderConfig(n_embd=visual_rwkv.args.n_embd, 
                              vision_tower_name=vision_tower_name, 
                              grid_size=-1)
 visual_encoder = VisionEncoder(config)
@@ -92,9 +93,9 @@ def generate(
             yield out_str.strip()
             out_last = i + 1
 
-    gpu_info = nvmlDeviceGetMemoryInfo(gpu_h)
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f'{timestamp} - vram {gpu_info.total} used {gpu_info.used} free {gpu_info.free}')
+    #gpu_info = nvmlDeviceGetMemoryInfo(gpu_h)
+    #timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #print(f'{timestamp} - vram {gpu_info.total} used {gpu_info.used} free {gpu_info.free}')
     del out
     del state
     gc.collect()
@@ -128,8 +129,8 @@ def pil_image_to_base64(pil_image):
     return base64_image
 
 image_cache = {}
-ln0_weight = model.w['blocks.0.ln0.weight'].to(torch.float32).to(device)
-ln0_bias = model.w['blocks.0.ln0.bias'].to(torch.float32).to(device)
+ln0_weight = visual_rwkv.w['blocks.0.ln0.weight'].to(torch.float32).to(device)
+ln0_bias = visual_rwkv.w['blocks.0.ln0.bias'].to(torch.float32).to(device)
 def compute_image_state(image):
     base64_image = pil_image_to_base64(image)
     if base64_image in image_cache:
@@ -142,7 +143,7 @@ def compute_image_state(image):
                                     (image_features.shape[-1],), 
                                     weight=ln0_weight, 
                                     bias=ln0_bias)
-        _, image_state = model.forward(embs=image_features, state=None)
+        _, image_state = visual_rwkv.forward(embs=image_features, state=None)
         image_cache[base64_image] = image_state
     return image_state
 
@@ -155,7 +156,7 @@ def chatbot(image, question):
     for output in generate(input_text, image_state):
         yield output
 ###############GrTab#################
-with gr.Blocks(title=title) as demo:
+with gr.Blocks(title=visual_title) as demo:
     with gr.Tab("Visual RWKV"):              ##visual model
         gr.Markdown(f"This is the Visual RWKV ")
         with gr.Row():
