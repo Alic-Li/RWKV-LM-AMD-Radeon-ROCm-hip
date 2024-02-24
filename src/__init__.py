@@ -34,7 +34,7 @@ pipeline_v6 = PIPELINE(model_v6, "rwkv_vocab_v20230424")  """
 ##调用V5模型
 title="rwkv_v5"    
 model_path = "/home/alic-li/RWKV-LM/model/world.pth" ##模型路径(可修改)
-model = RWKV(model=model_path, strategy='cuda bf16')  ##调整策略
+model = RWKV(model=model_path, strategy='cuda fp16')  ##调整策略
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")  ##模型词库
 
 def generate_prompt(instruction, input=""):
@@ -110,7 +110,7 @@ def evaluate(
     del out
     del state
     gc.collect()
-    torch.hip.empty_cache()
+    torch.cuda.empty_cache()
     yield out_str.strip()
  
 ################################################Gr页面###################################################################
@@ -118,10 +118,12 @@ with gr.Blocks(title=title) as demo:
     gr.HTML(f"<div style=\"text-align: center;\">\n<h1>{title}</h1>\n</div>")
     with gr.Tab("Raw Generation"):           ##text model
         gr.Markdown(f"主程序基于huggingface上的demo,作者源代码仓库:(https://github.com/BlinkDL/RWKV-LM) Powered By AMD Radeon!")
+        gr.Markdown(f"######玉子姐姐最可爱了～～～######")
+        gr.Markdown(f"######模型被调教坏了从我显卡上滚出去！要被玩坏的～～～######")
         with gr.Row():
             with gr.Column():
                 prompt = gr.Textbox(lines=2, label="Prompt", value="Assistant: Sure! Here is a very detailed plan to create flying pigs:")
-                token_count = gr.Slider(10, 333, label="Max Tokens", step=10, value=333)
+                token_count = gr.Slider(10, 333, label="Max Tokens", step=10, value=4000)
                 temperature = gr.Slider(0.2, 2.0, label="Temperature", step=0.1, value=1.0)
                 top_p = gr.Slider(0.0, 1.0, label="Top P", step=0.05, value=0.3)
                 presence_penalty = gr.Slider(0.0, 1.0, label="Presence Penalty", step=0.1, value=0)
@@ -136,4 +138,4 @@ with gr.Blocks(title=title) as demo:
     
 
 #demo.queue(concurrency_count=1, max_size=10)   #多线程设置
-demo.launch(server_name="127.0.0.1",server_port=8080,show_error=True,share=True)
+demo.launch(server_name="127.0.0.1",server_port=8080,show_error=True,share=False)
