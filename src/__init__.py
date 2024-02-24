@@ -122,9 +122,9 @@ with gr.Blocks(title=title) as demo:
         gr.Markdown(f"######模型被调教坏了从我显卡上滚出去！要被玩坏的～～～######")
         with gr.Row():
             with gr.Column():
-                prompt = gr.Textbox(lines=2, label="Prompt", value="Assistant: Sure! Here is a very detailed plan to create flying pigs:")
-                token_count = gr.Slider(10, 333, label="Max Tokens", step=10, value=4000)
-                temperature = gr.Slider(0.2, 2.0, label="Temperature", step=0.1, value=1.0)
+                prompt = gr.Textbox(lines=2, label="Prompt", value="")
+                token_count = gr.Slider(10, 10000, label="Max Tokens", step=10, value=333)
+                temperature = gr.Slider(0.2, 3.0, label="Temperature", step=0.1, value=1.0)
                 top_p = gr.Slider(0.0, 1.0, label="Top P", step=0.05, value=0.3)
                 presence_penalty = gr.Slider(0.0, 1.0, label="Presence Penalty", step=0.1, value=0)
                 count_penalty = gr.Slider(0.0, 1.0, label="Count Penalty", step=0.1, value=1)
