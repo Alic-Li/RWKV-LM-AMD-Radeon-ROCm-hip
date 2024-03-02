@@ -99,7 +99,7 @@ def generate(
     del out
     del state
     gc.collect()
-    torch.hip.empty_cache()
+    torch.cuda.empty_cache()
     yield out_str.strip()
 
 

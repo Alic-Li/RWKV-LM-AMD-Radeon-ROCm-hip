@@ -181,7 +181,7 @@ class RWKV(MyModule):
         else:
             prxxx = lambda *args, **kwargs: None
 
-        STRATEGY_REGEX = r"^(?:(?:^|->) *(?:cuda(?::[\d]+)?|cpu|mps|dml|hip) (?:fp(?:16|32)|bf16)(?:i8|i4|i3)?(?: \*[\d]+\+?)? *)+$"
+        STRATEGY_REGEX = r"^(?:(?:^|->) *(?:cuda(?::[\d]+)?|cpu|mps|dml) (?:fp(?:16|32)|bf16)(?:i8|i4|i3)?(?: \*[\d]+\+?)? *)+$"
         if not re.match(STRATEGY_REGEX, strategy):
             raise ValueError("Invalid strategy. Please read https://pypi.org/project/rwkv/")
 
@@ -203,7 +203,7 @@ class RWKV(MyModule):
             args.MODEL_NAME += '.pth'
         prxxx(f'Loading {args.MODEL_NAME} ...')
         with torch.no_grad():
-            self.w = torch.load(args.MODEL_NAME, map_location='cuda') # load model to CPU first
+            self.w = torch.load(args.MODEL_NAME, map_location='cpu') # load model to CPU first
             gc.collect()
             w = self.w
 
@@ -410,7 +410,7 @@ class RWKV(MyModule):
                         else:
                             w[x] = w[x].to(dtype=ATYPE)
                 
-                """if convert_and_save_and_exit == None:
+                if convert_and_save_and_exit == None:
                     if 'emb.' in x:
                         w[x] = w[x].contiguous()
                     elif (dd.stream) and (x.endswith('key.weight') or x.endswith('value.weight') or x.endswith('receptance.weight') or x.endswith('output.weight')):
@@ -428,7 +428,7 @@ class RWKV(MyModule):
                             w[x+'_my'] = w[x+'_my'].to(device=DEVICE).contiguous()
                             w[x+'_ry'] = w[x+'_ry'].to(device=DEVICE).contiguous()
                         except:
-                            pass"""
+                            pass
 
                 if 'ffn.value.weight' in x:
                     gc.collect()

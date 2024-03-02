@@ -28,7 +28,7 @@ sudo usermod -aG video $USERNAME
 ## run script
 
 ```
-python3 __init__.py
+python3 webui.py
 ```
 ## We need the effor of every ROCm users or developer!
 ## 欢迎大家来开发和移植
