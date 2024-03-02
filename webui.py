@@ -21,7 +21,7 @@ from pynvml import *
 device = torch.device("cuda") #调用hip设备(其实写cuda就是hip)
 if torch.cuda.is_available():
     print("device :hip or cuda")
-
+CHUNK_LEN = 256  # split input into chunks to save VRAM (shorter -> slower, but saves VRAM)
 ctx_limit = 3500
 ########################## text rwkv ################################################################
 
@@ -32,10 +32,11 @@ model_path_v6 = hf_hub_download(repo_id="BlinkDL/rwkv-6-world", filename=f"{titl
 model_v6 = RWKV(model=model_path_v6, strategy= cuda fp16')
 pipeline_v6 = PIPELINE(model_v6, "rwkv_vocab_v20230424")  """
 ##调用V5模型
-title="rwkv_v5"    
+title="rwkv_v5_AMD_ROCm"    
 model_path = "/home/alic-li/RWKV-LM/model/world.pth" ##模型路径(可修改)
 model = RWKV(model=model_path, strategy='cuda fp16')  ##调整策略
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")  ##模型词库
+user = "user"
 
 def generate_prompt(instruction, input=""):
     instruction = instruction.strip().replace('\r\n','\n').replace('\n\n','\n')
@@ -43,7 +44,8 @@ def generate_prompt(instruction, input=""):
     if input:
         return f"please input something~~~"
 
-
+model_tokens = []
+model_state = None
 
 def evaluate(
     ctx,
@@ -105,7 +107,7 @@ def evaluate(
  
  
  
-################################################对话函数###################################################################
+################################################dialogue###################################################################
 def chat(
     ctx,
     token_count=200,
@@ -114,51 +116,61 @@ def chat(
     presencePenalty = 0.1,
     countPenalty = 0.1,
 ):
+    model_tokens = []
+    model_state = None
+
+    ctx = ctx.replace("\r\n", "\n")
+
+    tokens = pipeline.encode(ctx)
+    tokens = [int(x) for x in tokens]
+    model_tokens += tokens
     args = PIPELINE_ARGS(temperature = max(0.2, float(temperature)), top_p = float(top_p),
                      alpha_frequency = countPenalty,
                      alpha_presence = presencePenalty,
                      token_ban = [], # ban the generation of some tokens
                      token_stop = [0]) # stop generation whenever you see any token here
-    ctx = ctx.strip()
-    all_tokens = []
-    out_last = 0
-    out_str = ''
-    occurrence = {}
-    state = None
-    for i in range(int(token_count)):
-        input_ids = pipeline.encode(ctx)[-ctx_limit:] if i == 0 else [token]
-        out, state = model.forward(tokens=input_ids, state=state)
-        for n in occurrence:
-            out[n] -= (args.alpha_presence + occurrence[n] * args.alpha_frequency)
-        token = pipeline.sample_logits(out, temperature=args.temperature, top_p=args.top_p)
-        if token in args.token_stop:
-            break
-        all_tokens += [token]
-        for occ in occurrence:
-            occurrence[occ] *= 0.996
-        ttt = pipeline.decode([token])
-        www = 1
-        if ttt in ' \t0123456789':
-            www = 0
-        #elif ttt in '\r\n,.;?!"\':+-*/=#@$%^&_`~|<>\\()[]{}，。；“”：？！（）【】':
-        #    www = 0.5
-        if token not in occurrence:
-            occurrence[token] = www
-        else:
-            occurrence[token] += www
-        tmp = pipeline.decode(all_tokens[out_last:])
-        if '\ufffd' not in tmp:
-            out_str += tmp
-            yield out_str.strip()
-            out_last = i + 1
-    del out
-    del state
-    gc.collect()
-    torch.cuda.empty_cache()
-    yield out_str.strip()
+    while len(tokens) > 0:
+        out, model_state = model.forward(tokens[:CHUNK_LEN], model_state)
+        tokens = tokens[CHUNK_LEN:]
+        occurrence = {}
+        out_tokens = []
+        out_last = 0
+        out_str = ''
+
+        for i in range(int(token_count)):
+            for n in occurrence:
+                out[n] -= args.alpha_presence + occurrence[n] * args.alpha_frequency # repetition penalty
+            out[0] -= 1e10  # disable END_OF_TEXT
+
+            token = pipeline.sample_logits(out, temperature, top_p)
+
+            out, model_state = model.forward([token], model_state)
+            model_tokens += [token]
+
+            out_tokens += [token]
+
+            for xxx in occurrence:
+                occurrence[xxx] *= countPenalty
+            occurrence[token] = 1 + (occurrence[token] if token in occurrence else 0)
+
+            tmp = pipeline.decode(out_tokens[out_last:])
+            if ("\ufffd" not in tmp) and (not tmp.endswith("\n")):  # only print & update out_last when it's a valid utf-8 string and not ending with \n
+                out_str += tmp
+                yield out_str.strip()
+                out_last = i + 1
+
+            if "\n\n" in tmp:
+                out_str += tmp
+                yield out_str.strip()
+                break
+
+gc.collect()
+torch.cuda.empty_cache()    
+    
 
 
-################################################Gr页面###################################################################
+
+################################################Gr_Tab###################################################################
 with gr.Blocks(title=title) as demo:
     gr.HTML(f"<div style=\"text-align: center;\">\n<h1>{title}</h1>\n</div>")
     with gr.Tab("续写"):           ##text model tab
@@ -189,7 +201,7 @@ with gr.Blocks(title=title) as demo:
                 token_count = gr.Slider(10, 10000, label="Max Tokens", step=10, value=333)
                 temperature = gr.Slider(0.2, 3.0, label="Temperature", step=0.1, value=1.0)
                 top_p = gr.Slider(0.0, 1.0, label="Top P", step=0.05, value=0.3)
-                presence_penalty = gr.Slider(0.0, 1.0, label="Presence Penalty", step=0.1, value=0)
+                presence_penalty = gr.Slider(0.0, 1.0, label="Presence Penalty", step=0.1, value=1)
                 count_penalty = gr.Slider(0.0, 1.0, label="Count Penalty", step=0.1, value=1)
             with gr.Column():
                 with gr.Row():
@@ -200,4 +212,4 @@ with gr.Blocks(title=title) as demo:
         clear.click(lambda: None, [], [output])
 
 ##demo.queue(concurrency_count=1, max_size=10)   #多线程设置
-demo.launch(server_name="127.0.0.1",server_port=8080,show_error=True,share=True)
+demo.launch(server_name="127.0.0.1",server_port=8080,show_error=True,share=False)
