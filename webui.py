@@ -37,7 +37,7 @@ model_path = "/home/alic-li/RWKV-LM/model/world.pth" ##模型路径(可修改)
 model = RWKV(model=model_path, strategy='cuda fp16')  ##调整策略
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")  ##模型词库
 user = "user"
-
+Assistant = "Molice"
 def generate_prompt(instruction, input=""):
     instruction = instruction.strip().replace('\r\n','\n').replace('\n\n','\n')
     input = input.strip().replace('\r\n','\n').replace('\n\n','\n')
@@ -118,54 +118,50 @@ def chat(
 ):
     model_tokens = []
     model_state = None
-
-    ctx = ctx.replace("\r\n", "\n")
-
-    tokens = pipeline.encode(ctx)
+    occurrence = {}
+    out_tokens = []
+    out_last = 0
+    out_str = ''
+    msg = ""
+    msg += Assistant + ": " + ctx + "\n\n" + user + ": "
+    tokens = pipeline.encode(msg)
     tokens = [int(x) for x in tokens]
     model_tokens += tokens
+    out, model_state = model.forward(tokens, model_state)
     args = PIPELINE_ARGS(temperature = max(0.2, float(temperature)), top_p = float(top_p),
                      alpha_frequency = countPenalty,
                      alpha_presence = presencePenalty,
                      token_ban = [], # ban the generation of some tokens
                      token_stop = [0]) # stop generation whenever you see any token here
-    while len(tokens) > 0:
-        out, model_state = model.forward(tokens[:CHUNK_LEN], model_state)
-        tokens = tokens[CHUNK_LEN:]
-        occurrence = {}
-        out_tokens = []
-        out_last = 0
-        out_str = ''
+    
+    for i in range(int(token_count)):
+        for n in occurrence:
+            out[n] -= args.alpha_presence + occurrence[n] * args.alpha_frequency # repetition penalty
+        out[0] -= 1e10  # disable END_OF_TEXT
 
-        for i in range(int(token_count)):
-            for n in occurrence:
-                out[n] -= args.alpha_presence + occurrence[n] * args.alpha_frequency # repetition penalty
-            out[0] -= 1e10  # disable END_OF_TEXT
+        token = pipeline.sample_logits(out, temperature, top_p)
 
-            token = pipeline.sample_logits(out, temperature, top_p)
+        out, model_state = model.forward([token], model_state)
+        model_tokens += [token]
 
-            out, model_state = model.forward([token], model_state)
-            model_tokens += [token]
+        out_tokens += [token]
 
-            out_tokens += [token]
+        for xxx in occurrence:
+            occurrence[xxx] *= countPenalty
+        occurrence[token] = 1 + (occurrence[token] if token in occurrence else 0)
 
-            for xxx in occurrence:
-                occurrence[xxx] *= countPenalty
-            occurrence[token] = 1 + (occurrence[token] if token in occurrence else 0)
+        tmp = pipeline.decode(out_tokens[out_last:])
+        if ("\ufffd" not in tmp) and (not tmp.endswith("\n")):  # only print & update out_last when it's a valid utf-8 string and not ending with \n
+            out_str += tmp
+            yield out_str.strip()
+            out_last = i + 1
 
-            tmp = pipeline.decode(out_tokens[out_last:])
-            if ("\ufffd" not in tmp) and (not tmp.endswith("\n")):  # only print & update out_last when it's a valid utf-8 string and not ending with \n
-                out_str += tmp
-                yield out_str.strip()
-                out_last = i + 1
-
-            if "\n\n" in tmp:
-                out_str += tmp
-                yield out_str.strip()
-                break
-
-gc.collect()
-torch.cuda.empty_cache()    
+        if "\n\n" in tmp:
+            out_str += tmp
+            yield out_str.strip()
+            break
+    gc.collect()
+    torch.cuda.empty_cache()    
     
 
 
@@ -212,4 +208,4 @@ with gr.Blocks(title=title) as demo:
         clear.click(lambda: None, [], [output])
 
 ##demo.queue(concurrency_count=1, max_size=10)   #多线程设置
-demo.launch(server_name="127.0.0.1",server_port=8080,show_error=True,share=False)
+demo.launch(server_name="192.168.0.105",server_port=11451,show_error=True,share=True)
