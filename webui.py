@@ -111,12 +111,15 @@ def chat(
     countPenalty,
 ):
     global model_state, Assistant, occurrence, answer, msg, out_last, out_str, out_tokens
-    if msg != None:
+    if user_name == None:
+        user_name = "Bob"
+
+    if msg != "" :
         pass
     elif os.path.exists("./model-data/" + user_name + ".txt"):
-        msg += str(open("./model-data/" + user_name + ".txt", "w"))
+        msg = open("./model-data/" + user_name + ".txt").read()
     else:
-        msg = str(open("./model-data/" + user_name + ".txt", "w"))
+        msg = open("./model-data/" + user_name + ".txt", "w")
         msg =""
     
     msg += user_name + ": " + ctx + "\n\n" + Assistant + ": "
