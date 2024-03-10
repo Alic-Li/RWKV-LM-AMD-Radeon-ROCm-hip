@@ -116,20 +116,22 @@ def chat(
 
     if msg != "" :
         pass
+    #elif os.path.exists("./model-data/" + user_name + ".txt"):      ##启用历史聊天记录分析
+        #msg = open("./model-data/" + user_name + ".txt").read()
     elif os.path.exists("./model-data/" + user_name + ".txt"):
-        msg = open("./model-data/" + user_name + ".txt").read()
+        msg = ""
     else:
-        msg = open("./model-data/" + user_name + ".txt", "w")
-        msg =""
+        msg = open("./model-data/" + user_name + ".txt", "w")   ##新建聊天记录
+        msg =""  ##清空当前聊天记录
     
     msg += user_name + ": " + ctx + "\n\n" + Assistant + ": "
     
-    if model_state != None:
+    if model_state != None:    
         pass
-    elif os.path.exists("./model-data/" + user_name + ".pth"):
+    elif os.path.exists("./model-data/" + user_name + ".pth"):   #加载历史状态
         model_state = torch.load("./model-data/" + user_name + ".pth", map_location=device)
     else:
-        model_state = None
+        model_state = None              ##新建状态
     
     tokens = pipeline.encode(msg)
     out, model_state = model.forward(tokens, model_state)
@@ -158,10 +160,10 @@ def chat(
             break
     if "\n\n" in answer:
             yield answer.strip()
-
-    msg += answer  
-    text_file = open("./model-data/" + user_name + ".txt", "w")
-    text_file.write(msg)
+    msg += answer
+    text =  user_name + ": " + ctx + "\n\n" + Assistant + ": " + answer
+    text_file = open("./model-data/" + user_name + ".txt", "a")
+    text_file.write(text)
     torch.save(model_state,"./model-data/" + user_name + ".pth")
     answer = ""
     gc.collect()    
