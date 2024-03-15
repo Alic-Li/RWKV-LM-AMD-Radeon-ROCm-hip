@@ -121,14 +121,12 @@ def chat(
     elif os.path.exists("./model-data/" + user_name + ".txt"):
         msg = ""
     else:
-        msg = open("./model-data/" + user_name + ".txt", "w")   ##新建聊天记录
+        msg = open("./model-data/" + user_name + ".txt")   ##新建聊天记录
         msg =""  ##清空当前聊天记录
     
     msg += user_name + ": " + ctx + "\n\n" + Assistant + ": "
     
-    if model_state != None:    
-        pass
-    elif os.path.exists("./model-data/" + user_name + ".pth"):   #加载历史状态
+    if os.path.exists("./model-data/" + user_name + ".pth"):   #加载历史状态
         model_state = torch.load("./model-data/" + user_name + ".pth", map_location=device)
     else:
         model_state = None              ##新建状态
@@ -166,6 +164,7 @@ def chat(
     text_file.write(text)
     torch.save(model_state,"./model-data/" + user_name + ".pth")
     answer = ""
+    model_state = None
     gc.collect()    
     torch.cuda.empty_cache()   
     return user_name, model_state, msg
@@ -210,8 +209,8 @@ with gr.Blocks(title=title) as demo:
                 token_count = gr.Slider(10, 10000, label="Max Tokens", step=10, value=333)
                 temperature = gr.Slider(0.2, 3.0, label="Temperature", step=0.1, value=1.0)
                 top_p = gr.Slider(0.0, 1.0, label="Top P", step=0.05, value=0.3)
-                presence_penalty = gr.Slider(0.0, 1.0, label="Presence Penalty", step=0.1, value=1)
-                count_penalty = gr.Slider(0.0, 1.0, label="Count Penalty", step=0.1, value=1)
+                presence_penalty = gr.Slider(0.0, 10.0, label="Presence Penalty", step=0.1, value=1)
+                count_penalty = gr.Slider(0.0, 10.0, label="Count Penalty", step=0.1, value=1)
             with gr.Column():
                 with gr.Row():
                     submit = gr.Button("Submit", variant="primary")
@@ -220,5 +219,5 @@ with gr.Blocks(title=title) as demo:
         submit.click(chat, [user_name,input, token_count, temperature, top_p, presence_penalty, count_penalty], [output])
         clear.click(lambda: None, [], [output])
 demo.queue(default_concurrency_limit=6)   #多线程设置
-demo.launch(server_name="192.168.0.105", server_port=11451, show_error=True, share=False)
+demo.launch(server_name="192.168.0.105", server_port=11451, show_error=True, share=True)
 
