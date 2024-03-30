@@ -13,9 +13,6 @@ pip install -r requirements.txt
 
 jump to(https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html)
 
-## Install the ROCm
-
-jump to(https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html)
 
 ## Launch Application
 ### run thses commands in you terminal before you launch (It maybe have some changes in our deivces)
