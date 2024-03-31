@@ -26,7 +26,7 @@ else:
 
 ##调用V5模型
 title="rwkv_v5_AMD_ROCm"    
-model_path = "/home/alic-li/RWKV-LM/model/world.pth" ##模型路径(可修改)
+model_path = "/home/alic-li/RWKV-LM/model/RWKV-6-v2-ctx4096.roleplay.pth" ##模型路径(可修改)
 model = RWKV(model=model_path, strategy='cuda fp16')  ##调整策略
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")  ##模型词库
 ctx_limit = 3500
