@@ -42,7 +42,7 @@ from torch.utils.cpp_extension import load
 HEAD_SIZE = int(os.environ["RWKV_HEAD_SIZE_A"])
 
 if 'x060' in os.environ["RWKV_MY_TESTING"]:
-    wkv6_cuda = load(name="wkv6", sources=["cuda/wkv6_op.cpp", f"cuda/wkv6_cuda.cu"],
+    wkv6_cuda = load(name="wkv6", sources=["cuda/wkv6_op.cpp", f"hip/wkv6_cuda.cu.hip"],
                     verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}", f"-D_T_={int(os.environ['RWKV_CTXLEN'])}"])
         
     class WKV_6(torch.autograd.Function):
@@ -92,7 +92,7 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
     def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
         return WKV_6.apply(B, T, C, H, r, k, v, w, u)
 else:
-    wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
+    wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"hip/wkv5_cuda.cu.hip"],
                     verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
         
     class WKV_5(torch.autograd.Function):
